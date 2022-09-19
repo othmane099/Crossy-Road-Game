@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="./phaser.js"></script>
+    <style type="text/css">
+        body {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+    <title>Game</title>
+</head>
+
+<body>
+    <script type="text/javascript">
+
+        let config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 500,
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    debug: false
+                }
+            },
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+        var game = new Phaser.Game(config);
+
+        function preload() {
+            this.load.image('flag', 'assets/flag.jpg');
+            this.load.spritesheet('ironman', 'assets/ironman.png', { frameWidth: 32, frameHeight: 48 });
+            this.load.spritesheet('car', 'assets/cars.png', { frameWidth: 76.8, frameHeight: 128 });
+            this.load.spritesheet('car-horizontal', 'assets/cars-horizontal.png', { frameWidth: 128, frameHeight: 76.8 });
+        }
+
+        const posLeft1 = { x: 0, y: 180 }
+        const posLeft2 = { x: 0, y: 380 }
+
+        const posRight1 = { x: 800, y: 120 }
+        const posRight2 = { x: 800, y: 320 }
+
+        const posTop = { x: 370, y: 0 }
+        const posBottom = { x: 430, y: 500 }
+
+        const inter1 = { x: 340, y: 90, w: 120, h: 120 }
+        const inter2 = { x: 340, y: 290, w: 120, h: 120 }
+
+
+        const starts = [posLeft1, posLeft2, posRight1, posRight2, posBottom, posTop]
+
+        let cars = []
+        let spritesCar
+        let standKey = 'stand-down'
+        let carSpeed = 250
+        let gameOver = false
+        let destRect
+        let fenceGroup
+
+
+        class Car {
+
+            sprite;
+            isStop = false
+            //1st intersection
+            #flagA = false
+            #flagB = false
+            #flagC = false
+            #flagD = false
+            //2nd intersection
+            #flagE = false
+            #flagF = false
+            #flagG = false
+            #flagH = false
+
+            constructor(w, h, scene) {
+                this.sprite = spritesCar.create(w, h);
+                this.sprite.setScale(0.4)
+                this.sprite.setImmovable()
+                this.sprite.setBounce(1);
+                this.color = Phaser.Math.Between(0, 4)
+                scene.physics.add.existing(this.sprite, true)
+            }
+
+            isInIntersection(inter) {
+                if (inter.x < this.sprite.x + this.sprite.width &&
+                    inter.x + inter.w > this.sprite.x &&
+                    inter.y < this.sprite.y + this.sprite.height &&
+                    inter.y + inter.h > this.sprite.y) {
+                    return true
+                }
+                return false
+            }
+
+            // detect the direction of the car
+            getDirection() {
+                if (this.sprite.body.velocity.x < 0) {
+                    return 37
+                } else if (this.sprite.body.velocity.y < 0) {
+                    return 38
+                } else if (this.sprite.body.velocity.x > 0) {
+                    return 39
+                } else if (this.sprite.body.velocity.y > 0) {
+                    return 40
+                }
+            }
+
+
+            handleIntersectionDirection() {
+
+                //first intersection from top 
+
+                // Come From Top
+                if (this.isInIntersection(inter1) && this.getDirection() == 40 && this.sprite.y > 120 && this.sprite.y < 122 && !this.flagB) {
+                    this.flagB = true
+                    goto(this.sprite, ['left', 'down'], this.color)
+                }
+
+                if (this.isInIntersection(inter1) && this.getDirection() == 40 && this.sprite.y > 175 && this.sprite.y < 177 && this.flagB) {
+                    this.flagB = false
+                    goto(this.sprite, ['right', 'down'], this.color)
+
+                }
+
+                // From Down
+                if (this.isInIntersection(inter1) && this.getDirection() == 38 && this.sprite.y > 178 && this.sprite.y < 180 && !this.flagA) {
+                    this.flagA = true
+                    goto(this.sprite, ['right', 'up'], this.color)
+                }
+
+                if (this.isInIntersection(inter1) && this.getDirection() == 38 && this.sprite.y > 123 && this.sprite.y < 125 && this.flagA) {
+                    this.flagA = false
+                    goto(this.sprite, ['left', 'up'], this.color)
+                }
+
+                //From Left
+                if (this.isInIntersection(inter1) && this.getDirection() == 39 && this.sprite.x > 365 && this.sprite.x < 367 && !this.flagC) {
+                    this.flagC = true
+
+                    goto(this.sprite, ['down', 'right'], this.color)
+                }
+
+                if (this.isInIntersection(inter1) && this.getDirection() == 39 && this.sprite.x > 425 && this.sprite.x < 427 && this.flagC) {
+                    this.flagC = false
+                    goto(this.sprite, ['up', 'right'], this.color)
+
+                }
+
+                //From Right
+                if (this.isInIntersection(inter1) && this.getDirection() == 37 && this.sprite.x > 428 && this.sprite.x < 430 && !this.flagD) {
+                    this.flagD = true
+                    goto(this.sprite, ['left', 'up'], this.color)
+
+                }
+
+                if (this.isInIntersection(inter1) && this.getDirection() == 37 && this.sprite.x > 368 && this.sprite.x < 370 && this.flagD) {
+                    this.flagD = false
+                    goto(this.sprite, ['down', 'left'], this.color)
+
+                }
+
+                // for second intersection
+
+                // Come From Top
+                if (this.isInIntersection(inter2) && this.getDirection() == 40 && this.sprite.y > 320 && this.sprite.y < 322 && !this.flagE) {
+                    this.flagE = true
+                    goto(this.sprite, ['left', 'down'], this.color)
+
+                }
+
+                if (this.isInIntersection(inter2) && this.getDirection() == 40 && this.sprite.y > 375 && this.sprite.y < 377 && this.flagE) {
+
+                    this.flagE = false
+                    goto(this.sprite, ['right', 'down'], this.color)
+
+                }
+
+                // From Down
+                if (this.isInIntersection(inter2) && this.getDirection() == 38 && this.sprite.y > 378 && this.sprite.y < 380 && !this.flagF) {
+                    this.flagF = true
+                    goto(this.sprite, ['right', 'up'], this.color)
+
+                }
+
+                if (this.isInIntersection(inter2) && this.getDirection() == 38 && this.sprite.y > 323 && this.sprite.y < 325 && this.flagF) {
+                    this.flagF = false
+                    goto(this.sprite, ['left', 'up'], this.color)
+
+                }
+
+                //From Left
+                if (this.isInIntersection(inter2) && this.getDirection() == 39 && this.sprite.x > 365 && this.sprite.x < 367 && !this.flagG) {
+                    this.flagG = true
+
+                    goto(this.sprite, ['down', 'right'], this.color)
+                }
+
+                if (this.isInIntersection(inter2) && this.getDirection() == 39 && this.sprite.x > 425 && this.sprite.x < 427 && this.flagG) {
+                    this.flagG = false
+                    goto(this.sprite, ['up', 'right'], this.color)
+
+                }
+
+                //From Right
+                if (this.isInIntersection(inter2) && this.getDirection() == 37 && this.sprite.x > 428 && this.sprite.x < 430 && !this.flagH) {
+                    this.flagH = true
+                    goto(this.sprite, ['left', 'up'], this.color)
+
+                }
+
+                if (this.isInIntersection(inter2) && this.getDirection() == 37 && this.sprite.x > 368 && this.sprite.x < 370 && this.flagH) {
+                    this.flagH = false
+                    goto(this.sprite, ['down', 'left'], this.color)
+
+                }
+
+
+            }
+        }
+
+        function create() {
+
+
+            spritesCar = this.physics.add.group()
+
+            // drawing Map
+            drawMap(this);  
+
+            createSpriteCar('yellow', 'car', 0)
+            createSpriteCar('blue', 'car', 1)
+            createSpriteCar('red', 'car', 2)
+            createSpriteCar('green', 'car', 3)
+            createSpriteCar('purple', 'car', 4)
+
+            createSpriteCar('yellow-hz', 'car-horizontal', 0)
+            createSpriteCar('blue-hz', 'car-horizontal', 1)
+            createSpriteCar('red-hz', 'car-horizontal', 2)
+            createSpriteCar('green-hz', 'car-horizontal', 3)
+            createSpriteCar('purple-hz', 'car-horizontal', 4)
+
+
+            player = this.physics.add.sprite(170, 450, 'ironman');
+            player.setScale(0.5)
+            player.setCollideWorldBounds(true);
+
+
+            animateSpritePlayer('down', 1, 3)
+            animateSpritePlayer('left', 5, 7)
+            animateSpritePlayer('right', 9, 11)
+            animateSpritePlayer('up', 13, 16)
+
+            standSpritePlayer('stand-down', 0)
+            standSpritePlayer('stand-left', 4)
+            standSpritePlayer('stand-right', 8)
+            standSpritePlayer('stand-up', 12)
+
+
+            cursors = this.input.keyboard.createCursorKeys()
+
+            this.physics.add.collider(player, spritesCar, carHitPlayer, null, this);
+            this.physics.add.collider(fenceGroup, player);
+            this.physics.add.collider(destRect, player, playerWin, null, this);
+        }
+
+
+        let cpt = 0
+        let delay = 50
+        let pos
+        let car
+        let dir
+        function update() {
+
+            if (!gameOver) {
+                // create new car when cpt % 50 = 0
+                delay = getDelay(player)
+                if (cpt % delay == 0) {
+                    pos = starts[Phaser.Math.Between(0, 5)]
+                    dir = getDirectionValue(pos)
+                    car = new Car(pos.x, pos.y, this)
+                    cars.push(car)
+                    carDirection(car.sprite, dir, car.color)
+
+                    // delete old cars
+                    if (cpt > 200) cars.shift()
+                }
+
+                // handle direction in intersections
+                for (let i = 0; i < cars.length; i++) {
+                    cars[i].handleIntersectionDirection()
+                }
+
+                // to Move Player
+                if (cursors.up.isDown) {
+                    player.anims.play('up', true);
+                    standKey = 'stand-up'
+                    player.setVelocityY(-160);
+                    player.setVelocityX(0)
+                } else if (cursors.down.isDown) {
+                    player.anims.play('down', true);
+                    standKey = 'stand-down'
+                    player.setVelocityY(160);
+                    player.setVelocityX(0)
+                } else if (cursors.left.isDown) {
+                    player.anims.play('left', true);
+                    standKey = 'stand-left'
+                    player.setVelocityX(-160);
+                    player.setVelocityY(0)
+                }
+                else if (cursors.right.isDown) {
+                    player.anims.play('right', true);
+                    standKey = 'stand-right'
+                    player.setVelocityX(160);
+                    player.setVelocityY(0)
+                } else {
+                    player.setVelocity(0, 0);
+                    player.anims.play(standKey);
+                }
+                cpt++
+            }
+        }
+
+        //update deffiiculty by minimizing delay to create new car and increase speed of car
+        function getDelay(player) {
+            if (player.x < 400) {
+                if (player.y > 0 && player.y < 200) {
+                    carSpeed = 300
+                    return 40
+                } else if (player.y > 200 && player.y < 400) {
+                    carSpeed = 280
+                    return 45
+                } else if (player.y > 400) {
+                    carSpeed = 250
+                    return 50
+                }
+            } else {
+                if (player.y > 0 && player.y < 200) {
+                    carSpeed = 320
+                    return 40
+                } else if (player.y > 200 && player.y < 400) {
+                    carSpeed = 350
+                    return 20
+                } else if (player.y > 400) {
+                    return 40
+                }
+            }
+
+        }
+
+        function getDirectionValue(pos) {
+            if (pos.x == 0) return 39
+            if (pos.x == 800) return 37
+            if (pos.y == 0) return 40
+            if (pos.y == 500) return 38
+        }
+
+        function goto(sprite, directions, color) {
+            let direction = directions[Phaser.Math.Between(0, 1)]
+            switch (direction) {
+                case 'left':
+                    carDirection(sprite, 37, color)
+                    break;
+                case 'up':
+                    carDirection(sprite, 38, color)
+                    break;
+                case 'right':
+                    carDirection(sprite, 39, color)
+                    break;
+                case 'down':
+                    carDirection(sprite, 40, color)
+                    break;
+            }
+        }
+
+        function carDirection(sprite, direction, color) {
+            switch (direction) {
+                case 37:
+                    sprite.setTexture('car-horizontal')
+                    sprite.anims.play(getCarColor(9 - color))
+                    sprite.flipX = false
+                    sprite.flipY = true
+                    sprite.body.setSize(sprite.frame.width, sprite.frame.height, false)
+                    sprite.setVelocityY(0)
+                    sprite.setVelocityX(-carSpeed)
+                    break;
+
+                case 38:
+                    sprite.setTexture('car')
+                    sprite.flipX = false
+                    sprite.flipY = false
+                    sprite.body.setSize(sprite.frame.width, sprite.frame.height, false)
+                    sprite.setVelocityY(-carSpeed)
+                    sprite.setVelocityX(0)
+                    sprite.anims.play(getCarColor(color))
+                    break;
+
+                case 39:
+                    sprite.setTexture('car-horizontal')
+                    sprite.flipX = true
+                    sprite.flipY = false
+                    sprite.body.setSize(sprite.frame.width, sprite.frame.height, false)
+                    sprite.setVelocityY(0)
+                    sprite.setVelocityX(carSpeed)
+                    sprite.anims.play(getCarColor(9 - color))
+                    break;
+
+                case 40:
+                    sprite.setTexture('car')
+                    sprite.flipX = false
+                    sprite.flipY = true
+                    sprite.body.setSize(sprite.frame.width, sprite.frame.height, false)
+                    sprite.setVelocityY(carSpeed)
+                    sprite.setVelocityX(0)
+                    sprite.anims.play(getCarColor(color))
+                    break;
+            }
+        }
+
+        function getCarColor(val) {
+            switch (val) {
+                case 0:
+                    return 'yellow'
+                    break;
+                case 1:
+                    return 'blue'
+                    break;
+                case 2:
+                    return 'red'
+                    break;
+                case 3:
+                    return 'green'
+                    break;
+                case 4:
+                    return 'purple'
+                    break;
+                case 5:
+                    return 'yellow-hz'
+                    break;
+                case 6:
+                    return 'blue-hz'
+                    break;
+                case 7:
+                    return 'red-hz'
+                    break;
+                case 8:
+                    return 'green-hz'
+                    break;
+                case 9:
+                    return 'purple-hz'
+                    break;
+            }
+        }
+
+        function animateSpritePlayer(k, s, e) {
+            game.anims.create({
+                key: k,
+                frames: game.anims.generateFrameNumbers('ironman', { start: s, end: e }),
+                frameRate: 10,
+                repeat: -1 // repeat forever
+            });
+        }
+
+        function createSpriteCar(k, fk, f) {
+            game.anims.create({
+                key: k,
+                frames: [{ key: fk, frame: f }],
+                frameRate: 10
+            });
+        }
+
+
+        function standSpritePlayer(k, standFrame) {
+            game.anims.create({
+                key: k,
+                frames: [{ key: 'ironman', frame: standFrame }],
+                frameRate: 10
+            });
+        }
+
+        function carHitPlayer(player, car) {
+
+            if (car.body.touching.right && car.body.velocity.x > 0) {
+                endGame(this, 'left-side')
+            } else if (car.body.touching.left && car.body.velocity.x < 0) {
+                endGame(this, 'right-side')
+            } else if (car.body.touching.up && car.body.velocity.y < 0) {
+                endGame(this, 'bottom-side')
+            } else if (car.body.touching.down && car.body.velocity.y > 0) {
+                endGame(this, 'top-side')
+            }
+        }
+
+
+        function endGame(scene, hitSide) {
+            scene.physics.pause()
+            gameOver = true;
+            player.anims.stop()
+            player.setTint(0xff0000);
+            handleHitSide(hitSide)
+            displayEndMessage(scene, 200, 200, 'Game Over !!!')
+        }
+
+        function playerWin() {
+            this.physics.pause()
+            gameOver = true;
+            player.anims.stop()
+
+            displayEndMessage(this, 200, 200, '*** You Win ***')
+        }
+
+        function handleHitSide(hitSide) {
+            switch (hitSide) {
+                case 'left-side':
+                    player.angle = -90;
+                    player.x = player.x + 10
+                    break;
+                case 'right-side':
+                    player.angle = 90;
+                    player.x = player.x - 10
+                    break;
+                case 'top-side':
+                    player.angle = 180;
+                    player.y = player.y + 10
+                    break;
+                case 'bottom-side':
+                    player.angle = -180;
+                    player.y = player.y - 10
+                    break;
+            }
+        }
+
+
+        function displayEndMessage(scene, x, y, msg) {
+            scene.add.rectangle(0, 0, 800, 500, 0x000000, 0.5).setOrigin(0, 0)
+            scene.add.text(x, y, msg, { font: '64px Arial' })
+                .setTint(0xff00ff, 0xffff00, 0x0000ff, 0xff0000);
+        }
+
+        function drawMap(scene) {
+            // Start Background
+            const grass = scene.add.rectangle(0, 0, 800, 500, 0x00ff00, 0.5)
+            grass.setOrigin(0, 0)
+
+            const roadPrincipal = scene.add.rectangle(350, 0, 100, 500, 0x000000, 1)
+            roadPrincipal.setOrigin(0, 0)
+
+            const street1 = scene.add.rectangle(0, 100, 800, 100, 0x000000, 1)
+            street1.setOrigin(0, 0)
+
+            const street2 = scene.add.rectangle(0, 300, 800, 100, 0x000000, 1)
+            street2.setOrigin(0, 0)
+
+            // Start Drawing Cross Walk
+
+            for (let i = 355; i < 455; i += 10) {
+                scene.add.rectangle(i, 25, 3, 50, 0xfff200, 1).setOrigin(0, 0)
+            }
+
+
+            for (let i = 150; i < 800; i += 450) {
+                for (let j = 310; j < 400; j += 10) {
+                    scene.add.rectangle(i, j, 50, 3, 0xfff200, 1).setOrigin(0, 0)
+                }
+            }
+
+            for (let i = 150; i < 800; i += 450) {
+                for (let j = 110; j < 200; j += 10) {
+                    scene.add.rectangle(i, j, 50, 3, 0xfff200, 1).setOrigin(0, 0)
+                }
+            }
+            // End Drawing Cross Walk
+
+            // Start Add Fences
+            fenceGroup = scene.physics.add.staticGroup();
+
+            for (let i = 0; i < 800; i += 450) {
+                for (let j = 100; j < 500; j += 100) {
+                    let flagF = scene.add.rectangle(i, j, 150, 2, 0x27ae60, 1)
+                    flagF.setOrigin(0, 0)
+                    fenceGroup.add(flagF)
+                }
+            }
+
+            for (let i = 200; i < 800; i += 450) {
+                for (let j = 100; j < 500; j += 100) {
+                    let flagF = scene.add.rectangle(i, j, 150, 2, 0x27ae60, 1)
+                    flagF.setOrigin(0, 0)
+                    fenceGroup.add(flagF)
+                }
+            }
+
+            for (let i = 350; i <= 450; i += 100) {
+                for (let j = 200; j < 500; j += 200) {
+                    let flagF = scene.add.rectangle(i, j, 2, 100, 0x27ae60, 1)
+                    flagF.setOrigin(0, 0)
+                    fenceGroup.add(flagF)
+                }
+            }
+
+            for (let i = 350; i <= 450; i += 100) {
+                for (let j = 0; j <= 100; j += 75) {
+                    let flagF = scene.add.rectangle(i, j, 2, 25, 0x27ae60, 1)
+                    flagF.setOrigin(0, 0)
+                    fenceGroup.add(flagF)
+                }
+            }
+
+            // End Add Fences
+
+            // Draw destination rectangle
+
+
+            destRect = scene.add.image(628, 450, 'flag')
+            destRect.setScale(0.4, 0.15)
+            scene.physics.add.existing(destRect);
+            destRect.body.setImmovable()
+
+            // End Background
+
+        }
+    </script>
+</body>
+
+</html>
